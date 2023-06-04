@@ -1,4 +1,4 @@
-FROM php:7.3-apache
+FROM php:8.1-apache
 
 ENV PHP_INI_DATE_TIMEZONE 'UTC'
 ENV PHP_INI_MEMORY_LIMIT 256M
@@ -11,6 +11,8 @@ RUN apt-get update -y \
         libpng-dev \
         libpng16-16 \
         libldap2-dev \
+        libc-client-dev \
+        libkrb5-dev \
         libxml2-dev \
         libzip-dev \
         zlib1g-dev \
@@ -25,8 +27,7 @@ RUN apt-get update -y \
         mailutils \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
-    && docker-php-ext-configure gd --with-png-dir=/usr --with-jpeg-dir=/usr \
-    && docker-php-ext-install -j$(nproc) calendar intl mysqli pdo_mysql gd soap zip \
+    && docker-php-ext-install -j$(nproc) calendar intl mysqli pdo_mysql gd soap zip  \
     && docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu/ \
     && docker-php-ext-install -j$(nproc) ldap && \
     mv ${PHP_INI_DIR}/php.ini-development ${PHP_INI_DIR}/php.ini
@@ -37,6 +38,11 @@ RUN chown www-data:www-data /var/documents
 COPY docker-run.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-run.sh
 
+# Configurez et installez l'extension IMAP
+RUN docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
+    && docker-php-ext-install imap 
+
+
 RUN pecl install xdebug && docker-php-ext-enable xdebug
 RUN echo 'zend_extension="/usr/local/lib/php/extensions/no-debug-non-zts-20180731/xdebug.so"' >> ${PHP_INI_DIR}/php.ini
 RUN echo 'xdebug.mode=debug' >> ${PHP_INI_DIR}/php.ini
@@ -46,6 +52,8 @@ RUN echo 'xdebug.client_port=9003' >> ${PHP_INI_DIR}/php.ini
 RUN echo 'xdebug.discover_client_host=true' >> ${PHP_INI_DIR}/php.ini
 #RUN echo 'xdebug.log="/tmp/xdebug.log"' >> ${PHP_INI_DIR}/php.ini
 RUN echo 'xdebug.idekey="netbeans-xdebug"' >> ${PHP_INI_DIR}/php.ini
+
+
 
 # set up sendmail config, to use maildev
 RUN echo "account default" > /etc/msmtprc
